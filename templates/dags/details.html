@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ dag.dag_id }} - Details{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <!-- DAG Header -->
+    <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ dag.dag_id }}</h1>
+                <p class="mt-1 text-sm text-gray-500">
+                    Cluster: {{ dag.cluster.name }}
+                </p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{% url 'dags:edit' dag.dag_id %}?cluster={{ dag.cluster.id }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Edit DAG
+                </a>
+                <button type="button" onclick="togglePause('{{ dag.dag_id }}')" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md {% if dag.is_paused %}text-indigo-700 bg-indigo-50 hover:bg-indigo-100{% else %}text-gray-700 bg-white hover:bg-gray-50{% endif %}">
+                    {% if dag.is_paused %}Resume{% else %}Pause{% endif %}
+                </button>
+                <button type="button" onclick="triggerDag('{{ dag.dag_id }}')" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    Trigger DAG
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAG Information -->
+    <div class="px-4 py-5 sm:p-6">
+        <dl class="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2">
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">DAG ID</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ dag.dag_id }}</dd>
+            </div>
+            <div class="sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Status</dt>
+                <dd class="mt-1 text-sm text-gray-900">
+                    {% if dag.is_active %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                    {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Inactive</span>
+                    {% endif %}
+                    {% if dag.is_paused %}
+                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Paused</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">Description</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ dag.description|default:"No description available" }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Recent Runs -->
+    <div class="px-4 py-5 border-t border-gray-200 sm:px-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-medium text-gray-900">Recent Runs</h2>
+            <a href="{% url 'dags:runs' dag.id %}" class="text-sm text-indigo-600 hover:text-indigo-900">View all runs</a>
+        </div>
+        <div class="mt-4 flex flex-col">
+            <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                    <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Run ID</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">State</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Execution Time</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tasks</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for run in recent_runs %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <a href="{% url 'dags:run_detail' dag.id run.id %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                                            {{ run.run_id }}
+                                        </a>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            {% if run.state == 'success' %}bg-green-100 text-green-800
+                                            {% elif run.state == 'failed' %}bg-red-100 text-red-800
+                                            {% elif run.state == 'running' %}bg-blue-100 text-blue-800
+                                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                            {{ run.state }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ run.execution_date|date:"Y-m-d H:i:s" }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {% if run.duration %}
+                                            {{ run.duration|floatformat:1 }}s
+                                        {% elif run.state == 'running' %}
+                                            Running ({{ run.start_date|timesince }})
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            {% for state_count in run.task_state_counts %}
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    {% if state_count.state == 'success' %}bg-green-100 text-green-800
+                                                    {% elif state_count.state == 'failed' %}bg-red-100 text-red-800
+                                                    {% elif state_count.state == 'running' %}bg-blue-100 text-blue-800
+                                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                    {{ state_count.state }}: {{ state_count.count }}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                        No recent runs found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Statistics -->
+    <div class="px-4 py-5 border-t border-gray-200 sm:px-6">
+        <h2 class="text-lg font-medium text-gray-900">Task Statistics</h2>
+        <div class="mt-4 flex flex-col">
+            <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+                    <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task ID</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Success Rate</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Duration</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Runs</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for stat in task_stats %}
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.task_id }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-16 bg-gray-200 rounded-full h-2.5">
+                                                <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ stat.success_rate|floatformat:0 }}%"></div>
+                                            </div>
+                                            <span class="ml-2 text-sm text-gray-500">{{ stat.success_rate|floatformat:1 }}%</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stat.avg_duration|floatformat:2 }}s</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stat.total_runs }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                        No task statistics available
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Alerts -->
+    {% if recent_alerts %}
+    <div class="px-4 py-5 border-t border-gray-200 sm:px-6">
+        <h2 class="text-lg font-medium text-gray-900">Recent Alerts</h2>
+        <div class="mt-4 space-y-4">
+            {% for alert in recent_alerts %}
+            <div class="rounded-md {% if alert.level == 'error' %}bg-red-50{% elif alert.level == 'warning' %}bg-yellow-50{% else %}bg-blue-50{% endif %} p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        {% if alert.level == 'error' %}
+                        <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                        </svg>
+                        {% elif alert.level == 'warning' %}
+                        <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        {% else %}
+                        <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <h3 class="text-sm font-medium {% if alert.level == 'error' %}text-red-800{% elif alert.level == 'warning' %}text-yellow-800{% else %}text-blue-800{% endif %}">
+                            {{ alert.title }}
+                        </h3>
+                        <div class="mt-2 text-sm {% if alert.level == 'error' %}text-red-700{% elif alert.level == 'warning' %}text-yellow-700{% else %}text-blue-700{% endif %}">
+                            <p>{{ alert.message }}</p>
+                        </div>
+                        <div class="mt-1">
+                            <div class="flex space-x-3 text-sm {% if alert.level == 'error' %}text-red-500{% elif alert.level == 'warning' %}text-yellow-500{% else %}text-blue-500{% endif %}">
+                                <span>{{ alert.created_at|date:"Y-m-d H:i:s" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function togglePause(dagId) {
+    fetch(`/dags/${dagId}/toggle_pause/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+    }).then(response => {
+        if (response.ok) {
+            window.location.reload();
+        }
+    });
+}
+
+function triggerDag(dagId) {
+    fetch(`/dags/${dagId}/trigger/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+    }).then(response => {
+        if (response.ok) {
+            window.location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

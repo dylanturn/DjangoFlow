@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}System Alerts{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
+        <div class="p-6">
+            <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4" id="alert-filters">
+                <div>
+                    <label for="cluster" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cluster</label>
+                    <select id="cluster" name="cluster" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Clusters</option>
+                        {% for cluster in clusters %}
+                        <option value="{{ cluster.id }}" {% if selected_cluster == cluster.id %}selected{% endif %}>
+                            {{ cluster.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="severity" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Severity</label>
+                    <select id="severity" name="severity" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Severities</option>
+                        <option value="critical" {% if selected_severity == 'critical' %}selected{% endif %}>Critical</option>
+                        <option value="warning" {% if selected_severity == 'warning' %}selected{% endif %}>Warning</option>
+                        <option value="info" {% if selected_severity == 'info' %}selected{% endif %}>Info</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                    <select id="status" name="status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Status</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="acknowledged" {% if selected_status == 'acknowledged' %}selected{% endif %}>Acknowledged</option>
+                        <option value="resolved" {% if selected_status == 'resolved' %}selected{% endif %}>Resolved</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md">
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alerts Grid -->
+    <div class="grid grid-cols-1 gap-6">
+        {% for alert in alerts %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        {% if alert.severity == 'critical' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Critical
+                        </span>
+                        {% elif alert.severity == 'warning' %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Warning
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Info
+                        </span>
+                        {% endif %}
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ alert.title }}</h3>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        {% if not alert.is_resolved %}
+                        <button onclick="acknowledgeAlert('{{ alert.id }}')" 
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                {% if alert.acknowledged_by %}disabled{% endif %}>
+                            {% if alert.acknowledged_by %}
+                            Acknowledged by {{ alert.acknowledged_by.username }}
+                            {% else %}
+                            Acknowledge
+                            {% endif %}
+                        </button>
+                        <button onclick="resolveAlert('{{ alert.id }}')"
+                                class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            Resolve
+                        </button>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Resolved
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ alert.message }}</p>
+                <div class="mt-4 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                    <div class="flex items-center space-x-4">
+                        <span>Cluster: {{ alert.cluster.name }}</span>
+                        {% if alert.dag %}
+                        <span>DAG: {{ alert.dag.name }}</span>
+                        {% endif %}
+                        {% if alert.task_instance %}
+                        <span>Task: {{ alert.task_instance.task_id }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span>Created: {{ alert.created_at|timesince }} ago</span>
+                        {% if alert.is_resolved %}
+                        <span>Resolved: {{ alert.resolved_at|timesince }} ago</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <div class="p-6 text-center">
+                <p class="text-gray-500 dark:text-gray-400">No alerts found matching your criteria.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if alerts.paginator.num_pages > 1 %}
+    <div class="mt-6 bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6 rounded-lg shadow">
+        <div class="flex-1 flex justify-between sm:hidden">
+            {% if alerts.has_previous %}
+            <a href="?page={{ alerts.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            {% if alerts.has_next %}
+            <a href="?page={{ alerts.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Next
+            </a>
+            {% endif %}
+        </div>
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Showing
+                    <span class="font-medium">{{ alerts.start_index }}</span>
+                    to
+                    <span class="font-medium">{{ alerts.end_index }}</span>
+                    of
+                    <span class="font-medium">{{ alerts.paginator.count }}</span>
+                    results
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% if alerts.has_previous %}
+                    <a href="?page={{ alerts.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% for i in alerts.paginator.page_range %}
+                    {% if alerts.number == i %}
+                    <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-indigo-50 text-sm font-medium text-indigo-600">
+                        {{ i }}
+                    </span>
+                    {% else %}
+                    <a href="?page={{ i }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        {{ i }}
+                    </a>
+                    {% endif %}
+                    {% endfor %}
+                    {% if alerts.has_next %}
+                    <a href="?page={{ alerts.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+    // Auto-submit form when filters change
+    document.querySelectorAll('#alert-filters select').forEach(select => {
+        select.addEventListener('change', () => {
+            select.closest('form').submit();
+        });
+    });
+
+    function acknowledgeAlert(alertId) {
+        fetch(`/monitoring/alerts/${alertId}/acknowledge/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+
+    function resolveAlert(alertId) {
+        fetch(`/monitoring/alerts/${alertId}/resolve/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+</script>
+{% endblock %}
+{% endblock %}

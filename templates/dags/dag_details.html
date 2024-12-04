@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ dag.dag_id }} Details{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- DAG Header -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ dag.dag_id }}</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">{{ dag.description }}</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {% if dag.is_paused %}bg-yellow-100 text-yellow-800{% else %}bg-green-100 text-green-800{% endif %}">
+                    {{ dag.is_paused|yesno:"Paused,Active" }}
+                </span>
+                <button onclick="togglePause('{{ dag.id }}')" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    {{ dag.is_paused|yesno:"Resume,Pause" }}
+                </button>
+                <button onclick="triggerDag('{{ dag.id }}')" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700">
+                    Trigger DAG
+                </button>
+            </div>
+        </div>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Runs</h3>
+                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ total_runs }}</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Success Rate</h3>
+                <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ success_rate|floatformat:1 }}%</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</h3>
+                <p class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ dag.last_updated|date:"M d, Y H:i" }}</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">File Location</h3>
+                <p class="mt-1 text-sm font-medium text-gray-900 dark:text-white truncate">{{ dag.file_location }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run History Chart -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Run History (Last 30 Days)</h2>
+        <canvas id="runHistoryChart" class="w-full h-64"></canvas>
+    </div>
+
+    <!-- Task Statistics -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Statistics (Last 7 Days)</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead>
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Task ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Runs</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Success Rate</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Avg Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Failed Runs</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Running</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for task in task_stats %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ task.task_id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.total_runs }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.success_rate|floatformat:1 }}%</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.avg_duration|floatformat:1 }}s</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.failed_runs }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ task.running }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Runs and Alerts Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <!-- Recent Runs -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Runs</h2>
+            <div class="space-y-4">
+                {% for run in recent_runs %}
+                <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ run.run_id }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ run.execution_date|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        {% if run.state == 'success' %}bg-green-100 text-green-800
+                        {% elif run.state == 'failed' %}bg-red-100 text-red-800
+                        {% elif run.state == 'running' %}bg-blue-100 text-blue-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ run.state|title }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Alerts -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Alerts</h2>
+            <div class="space-y-4">
+                {% for alert in recent_alerts %}
+                <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if alert.severity == 'critical' %}bg-red-100 text-red-800
+                            {% elif alert.severity == 'warning' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ alert.severity|title }}
+                        </span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ alert.created_at|timesince }} ago</span>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-900 dark:text-white">{{ alert.message }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Recent Logs</h2>
+        <div class="space-y-4">
+            {% for log in recent_logs %}
+            <div class="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                    {% if log.level == 'error' or log.level == 'critical' %}bg-red-100 text-red-800
+                    {% elif log.level == 'warning' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                    {{ log.level|title }}
+                </span>
+                <div class="flex-1">
+                    <p class="text-sm text-gray-900 dark:text-white">{{ log.message }}</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ log.timestamp|date:"M d, Y H:i:s" }} - {{ log.source }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Prepare data for the run history chart
+    const runHistory = {{ run_history|safe }};
+    const labels = runHistory.map(entry => entry.execution_date__date);
+    const successData = runHistory.map(entry => entry.successful);
+    const failedData = runHistory.map(entry => entry.failed);
+
+    // Create the run history chart
+    const ctx = document.getElementById('runHistoryChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Successful Runs',
+                    data: successData,
+                    backgroundColor: '#10B981',
+                    stack: 'Stack 0',
+                },
+                {
+                    label: 'Failed Runs',
+                    data: failedData,
+                    backgroundColor: '#EF4444',
+                    stack: 'Stack 0',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: {
+                        display: false
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Functions for DAG actions
+    function togglePause(dagId) {
+        fetch(`/dags/${dagId}/toggle_pause/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+
+    function triggerDag(dagId) {
+        fetch(`/dags/${dagId}/trigger/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        }).then(() => {
+            window.location.reload();
+        });
+    }
+</script>
+{% endblock %}

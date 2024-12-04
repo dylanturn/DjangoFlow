@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Cluster Health{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Cluster Health Status</h2>
+
+    <div class="grid grid-cols-1 gap-6">
+        {% for data in health_data %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ data.cluster.name }}</h3>
+                    <div class="flex items-center space-x-4">
+                        {% if data.failed_tasks > 0 %}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {{ data.failed_tasks }} Failed Tasks
+                        </span>
+                        {% endif %}
+                        {% if data.last_updated %}
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            Updated {{ data.last_updated|timesince }} ago
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for metric in data.metrics %}
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ metric.name }}</h4>
+                            {% if metric.status == 'critical' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                Critical
+                            </span>
+                            {% elif metric.status == 'warning' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Warning
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Healthy
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                            {{ metric.value }}{% if metric.unit %} {{ metric.unit }}{% endif %}
+                        </p>
+                        {% if metric.threshold %}
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Threshold: {{ metric.threshold }}{% if metric.unit %} {{ metric.unit }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if not data.metrics %}
+                <p class="text-gray-500 dark:text-gray-400">No metrics available for this cluster</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Refresh script -->
+<script>
+    function refreshHealth() {
+        location.reload();
+    }
+    // Refresh every 30 seconds
+    setInterval(refreshHealth, 30000);
+</script>
+{% endblock %}

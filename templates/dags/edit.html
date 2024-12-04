@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit DAG - {{ dag.dag_id }}{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow overflow-hidden sm:rounded-lg">
+    <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+        <h1 class="text-2xl font-bold text-gray-900">Edit DAG</h1>
+        <p class="mt-1 text-sm text-gray-500">
+            Edit configuration for DAG: {{ dag.dag_id }}
+        </p>
+    </div>
+
+    <div class="px-4 py-5 sm:p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+                <div class="mt-1">
+                    <textarea id="description" name="description" rows="3" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">{{ dag.description }}</textarea>
+                </div>
+            </div>
+
+            <div>
+                <label for="schedule_interval" class="block text-sm font-medium text-gray-700">Schedule Interval</label>
+                <div class="mt-1">
+                    <input type="text" name="schedule_interval" id="schedule_interval" value="{{ dag.schedule_interval }}" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Status</label>
+                <div class="mt-2">
+                    <div class="flex items-center">
+                        <input id="is_active" name="is_active" type="checkbox" {% if dag.is_active %}checked{% endif %} class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+                    </div>
+                    <div class="flex items-center mt-2">
+                        <input id="is_paused" name="is_paused" type="checkbox" {% if dag.is_paused %}checked{% endif %} class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="is_paused" class="ml-2 block text-sm text-gray-900">Paused</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <a href="{% url 'dags:details' dag.dag_id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

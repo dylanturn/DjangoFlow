@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Welcome Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Welcome to DjangoFlow</h1>
+        <p class="text-xl text-gray-600">Your Modern DAG Workflow Management System</p>
+    </div>
+
+    <!-- System Overview -->
+    <div class="grid md:grid-cols-2 gap-6 mb-12">
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-md">
+            <div class="flex items-center mb-4">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <h3 class="ml-3 text-xl font-semibold">Active DAGs</h3>
+            </div>
+            <p class="text-4xl font-bold text-blue-600">{{ active_dags }}</p>
+            <p class="mt-2 text-gray-600">Currently running workflow definitions</p>
+            <a href="{% url 'dags:list' %}" class="inline-flex items-center mt-4 text-blue-600 hover:underline">
+                View all DAGs
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
+        </div>
+
+        <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-md">
+            <div class="flex items-center mb-4">
+                <div class="p-2 bg-green-100 rounded-lg">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                </div>
+                <h3 class="ml-3 text-xl font-semibold">Active Clusters</h3>
+            </div>
+            <p class="text-4xl font-bold text-green-600">{{ active_clusters }}</p>
+            <p class="mt-2 text-gray-600">Running compute clusters</p>
+            <a href="{% url 'clusters:list' %}" class="inline-flex items-center mt-4 text-green-600 hover:underline">
+                View all Clusters
+                <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+        <div class="grid md:grid-cols-3 gap-6">
+            <a href="{% url 'dags:list' %}" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50">
+                <h3 class="mb-2 text-xl font-bold text-gray-900">View DAGs</h3>
+                <p class="text-gray-600">Monitor and manage your workflow definitions</p>
+            </a>
+            <a href="{% url 'clusters:list' %}" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50">
+                <h3 class="mb-2 text-xl font-bold text-gray-900">Manage Clusters</h3>
+                <p class="text-gray-600">Configure and monitor compute resources</p>
+            </a>
+            <a href="#" class="p-6 bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-50">
+                <h3 class="mb-2 text-xl font-bold text-gray-900">View Documentation</h3>
+                <p class="text-gray-600">Learn more about DjangoFlow features</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Documentation Links -->
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Documentation & Resources</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-md">
+                <h3 class="text-xl font-bold text-gray-900 mb-4">Getting Started</h3>
+                <ul class="space-y-3">
+                    <li>
+                        <a href="#" class="flex items-center text-blue-600 hover:underline">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Quick Start Guide
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center text-blue-600 hover:underline">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                            </svg>
+                            API Documentation
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="p-6 bg-white rounded-lg border border-gray-200 shadow-md">
+                <h3 class="text-xl font-bold text-gray-900 mb-4">Help & Support</h3>
+                <ul class="space-y-3">
+                    <li>
+                        <a href="#" class="flex items-center text-blue-600 hover:underline">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            FAQs
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center text-blue-600 hover:underline">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            Contact Support
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

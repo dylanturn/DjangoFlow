@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">{{ cluster.name }}</h1>
+        <div class="flex space-x-4">
+            <a href="{% url 'clusters:cluster_edit' cluster.pk %}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                Edit Cluster
+            </a>
+            <form action="{% url 'clusters:cluster_delete' cluster.pk %}" method="POST" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onclick="return confirm('Are you sure you want to delete this cluster?')">
+                    Delete Cluster
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cluster Details -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Cluster Details</h2>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-gray-600">Endpoint:</p>
+                <p class="font-medium">{{ cluster.endpoint }}</p>
+            </div>
+            <div>
+                <p class="text-gray-600">Username:</p>
+                <p class="font-medium">{{ cluster.username }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Status -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">Health Status</h2>
+            <button id="refresh-health" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Refresh Health
+            </button>
+        </div>
+        <div id="health-status" class="grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-gray-600">Overall Status:</p>
+                <p class="font-medium">
+                    <span class="health-indicator {{ cluster.latest_health.status }}">
+                        {{ cluster.latest_health.status|title }}
+                    </span>
+                </p>
+            </div>
+            <div>
+                <p class="text-gray-600">Last Check:</p>
+                <p class="font-medium">{{ cluster.latest_health.created_at|date:"Y-m-d H:i:s" }}</p>
+            </div>
+            <div>
+                <p class="text-gray-600">Scheduler Status:</p>
+                <p class="font-medium">{{ cluster.latest_health.scheduler_status|title }}</p>
+            </div>
+            <div>
+                <p class="text-gray-600">DAG Processor Status:</p>
+                <p class="font-medium">{{ cluster.latest_health.dag_processor_status|title }}</p>
+            </div>
+            <div>
+                <p class="text-gray-600">Metadata DB Status:</p>
+                <p class="font-medium">{{ cluster.latest_health.metadata_db_status|title }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAGs List -->
+    <div class="bg-white shadow-md rounded-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">DAGs</h2>
+            <button id="refresh-dags" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Refresh DAGs
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full table-auto">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="px-4 py-2 text-left">DAG ID</th>
+                        <th class="px-4 py-2 text-left">Description</th>
+                        <th class="px-4 py-2 text-left">Status</th>
+                        <th class="px-4 py-2 text-left">Last Updated</th>
+                        <th class="px-4 py-2 text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="dags-list">
+                    {% for dag in dags %}
+                    <tr class="border-t">
+                        <td class="px-4 py-2">{{ dag.dag_id }}</td>
+                        <td class="px-4 py-2">{{ dag.description|truncatechars:50 }}</td>
+                        <td class="px-4 py-2">
+                            {% if dag.is_paused %}
+                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">Paused</span>
+                            {% else %}
+                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Active</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-2">{{ dag.last_updated|date:"Y-m-d H:i:s" }}</td>
+                        <td class="px-4 py-2">
+                            <a href="{{ cluster.endpoint }}/dags/{{ dag.dag_id }}/grid" target="_blank" class="text-blue-500 hover:text-blue-700">View in Airflow</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr class="border-t">
+                        <td colspan="5" class="px-4 py-2 text-center text-gray-500">No DAGs found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const refreshHealth = document.getElementById('refresh-health');
+    const refreshDags = document.getElementById('refresh-dags');
+
+    refreshHealth.addEventListener('click', function() {
+        fetch('{% url "clusters:refresh_health" cluster.pk %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to refresh health status');
+        });
+    });
+
+    refreshDags.addEventListener('click', function() {
+        fetch('{% url "clusters:refresh_dags" cluster.pk %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to refresh DAGs');
+        });
+    });
+});
+</script>
+{% endblock %}

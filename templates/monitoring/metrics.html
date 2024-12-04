@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}System Metrics{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
+        <div class="p-6">
+            <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label for="cluster" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Cluster</label>
+                    <select id="cluster" name="cluster" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Clusters</option>
+                        {% for cluster in clusters %}
+                        <option value="{{ cluster.id }}" {% if selected_cluster == cluster.id %}selected{% endif %}>
+                            {{ cluster.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="metric_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Metric Type</label>
+                    <select id="metric_type" name="type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="">All Types</option>
+                        <option value="system" {% if selected_type == 'system' %}selected{% endif %}>System</option>
+                        <option value="airflow" {% if selected_type == 'airflow' %}selected{% endif %}>Airflow</option>
+                        <option value="custom" {% if selected_type == 'custom' %}selected{% endif %}>Custom</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="time_range" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Time Range</label>
+                    <select id="time_range" name="range" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                        <option value="1h" {% if time_range == '1h' %}selected{% endif %}>Last Hour</option>
+                        <option value="24h" {% if time_range == '24h' %}selected{% endif %}>Last 24 Hours</option>
+                        <option value="7d" {% if time_range == '7d' %}selected{% endif %}>Last 7 Days</option>
+                        <option value="30d" {% if time_range == '30d' %}selected{% endif %}>Last 30 Days</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md">
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Metric Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {% for metric_name, metric_data in grouped_metrics.items %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ metric_name|title }}</h3>
+            </div>
+            <div class="p-6">
+                <div class="h-64">
+                    <canvas id="chart-{{ metric_name|slugify }}" class="w-full"></canvas>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Current</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ metric_data.current|floatformat:1 }}%
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Average</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ metric_data.average|floatformat:1 }}%
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Peak</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                            {{ metric_data.peak|floatformat:1 }}%
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const chartColors = {
+        'cpu_usage': 'rgb(75, 192, 192)',
+        'memory_usage': 'rgb(153, 102, 255)',
+        'disk_usage': 'rgb(255, 159, 64)',
+        'default': 'rgb(75, 192, 192)'
+    };
+
+    {% for metric_name, metric_data in grouped_metrics.items %}
+    new Chart(document.getElementById('chart-{{ metric_name|slugify }}').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {{ metric_data.timestamps|safe }},
+            datasets: [{
+                label: '{{ metric_name|title }}',
+                data: {{ metric_data.values|safe }},
+                borderColor: chartColors['{{ metric_name }}'] || chartColors.default,
+                tension: 0.1,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Percentage'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            }
+        }
+    });
+    {% endfor %}
+
+    // Auto-submit form when filters change
+    document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+            select.closest('form').submit();
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

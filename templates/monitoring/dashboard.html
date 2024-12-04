@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitoring Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" id="monitoring-dashboard">
+    <!-- Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="cluster-overview">
+        {% for cluster in clusters %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ cluster.name }}</h3>
+                <div class="flex items-center">
+                    {% if cluster.health_status == 'healthy' %}
+                    <span class="flex h-3 w-3">
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    {% else %}
+                    <span class="flex h-3 w-3">
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Total DAGs</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ cluster.total_dags }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Active DAGs</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ cluster.active_dags }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Failed Tasks</p>
+                    <p class="text-2xl font-bold text-red-600">{{ cluster.failed_tasks }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Recent Alerts -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Alerts</h3>
+            </div>
+            <div class="p-6" id="recent-alerts">
+                {% if recent_alerts %}
+                <div class="flow-root">
+                    <ul class="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for alert in recent_alerts %}
+                        <li class="py-5">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-shrink-0">
+                                    {% if alert.severity == 'critical' %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Critical
+                                    </span>
+                                    {% elif alert.severity == 'warning' %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        Warning
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Info
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                        {{ alert.title }}
+                                    </p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                                        {{ alert.message|truncatechars:100 }}
+                                    </p>
+                                </div>
+                                <div class="flex-shrink-0 text-sm text-gray-500 dark:text-gray-400">
+                                    {{ alert.created_at|timesince }} ago
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% else %}
+                <p class="text-gray-500 dark:text-gray-400">No recent alerts</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">System Metrics</h3>
+            </div>
+            <div class="p-6" id="system-metrics">
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">CPU Usage</h4>
+                        <div class="h-24" id="cpu-chart"></div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Memory Usage</h4>
+                        <div class="h-24" id="memory-chart"></div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Disk Usage</h4>
+                        <div class="h-24" id="disk-chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Initialize WebSocket connection
+    const monitoringSocket = new WebSocket(
+        'ws://' + window.location.host + '/ws/monitoring/'
+    );
+
+    // Initialize charts
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        },
+        animation: false
+    };
+
+    const cpuChart = new Chart(document.getElementById('cpu-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'CPU Usage %',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        },
+        options: chartOptions
+    });
+
+    const memoryChart = new Chart(document.getElementById('memory-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Memory Usage %',
+                data: [],
+                borderColor: 'rgb(153, 102, 255)',
+                tension: 0.1
+            }]
+        },
+        options: chartOptions
+    });
+
+    const diskChart = new Chart(document.getElementById('disk-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Disk Usage %',
+                data: [],
+                borderColor: 'rgb(255, 159, 64)',
+                tension: 0.1
+            }]
+        },
+        options: chartOptions
+    });
+
+    // Handle WebSocket messages
+    monitoringSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        
+        // Update cluster overview
+        if (data.cluster_health) {
+            updateClusterOverview(data.cluster_health);
+        }
+        
+        // Update alerts
+        if (data.recent_alerts) {
+            updateAlerts(data.recent_alerts);
+        }
+        
+        // Update system metrics
+        if (data.system_metrics) {
+            updateSystemMetrics(data.system_metrics);
+        }
+    };
+
+    function updateClusterOverview(healthData) {
+        // Update cluster cards with new health data
+        const overview = document.getElementById('cluster-overview');
+        // Implementation details...
+    }
+
+    function updateAlerts(alerts) {
+        // Update alerts section with new alerts
+        const alertsContainer = document.getElementById('recent-alerts');
+        // Implementation details...
+    }
+
+    function updateSystemMetrics(metrics) {
+        // Update system metric charts
+        const cpuMetrics = metrics.filter(m => m.name === 'cpu_usage');
+        const memoryMetrics = metrics.filter(m => m.name === 'memory_usage');
+        const diskMetrics = metrics.filter(m => m.name === 'disk_usage');
+
+        updateChart(cpuChart, cpuMetrics);
+        updateChart(memoryChart, memoryMetrics);
+        updateChart(diskChart, diskMetrics);
+    }
+
+    function updateChart(chart, metrics) {
+        const labels = metrics.map(m => new Date(m.timestamp).toLocaleTimeString());
+        const values = metrics.map(m => m.value);
+
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update();
+    }
+</script>
+{% endblock %}
+{% endblock %}
