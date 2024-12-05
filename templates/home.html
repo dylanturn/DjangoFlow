@@ -2,6 +2,12 @@
 
 {% block title %}Home{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <!-- Welcome Section -->
@@ -48,6 +54,29 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </a>
+        </div>
+    </div>
+
+    <!-- DAG Timeline -->
+    <div class="mb-12">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-md p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">DAG Schedule Timeline</h2>
+                    <p class="text-gray-600">Next 24 hours of scheduled DAG runs</p>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="prevDay" class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Previous Day
+                    </button>
+                    <button id="nextDay" class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Next Day
+                    </button>
+                </div>
+            </div>
+            <div class="h-96">
+                <canvas id="dagTimeline"></canvas>
+            </div>
         </div>
     </div>
 
@@ -119,4 +148,112 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('dagTimeline').getContext('2d');
+    let currentDate = new Date();
+    
+    // Format DAG schedule data from the server
+    const dagSchedules = {{ dag_schedules|safe }};
+    
+    function formatScheduleData(schedules, baseDate) {
+        return schedules.map(schedule => ({
+            x: schedule.start_time,
+            y: schedule.dag_id,
+            schedule_interval: schedule.schedule_interval,
+            cluster: schedule.cluster,
+            status: schedule.status
+        }));
+    }
+
+    const timelineChart = new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'DAG Schedules',
+                data: formatScheduleData(dagSchedules, currentDate),
+                backgroundColor: function(context) {
+                    const status = context.raw?.status;
+                    return {
+                        'scheduled': 'rgba(59, 130, 246, 0.6)',  // Blue
+                        'running': 'rgba(16, 185, 129, 0.6)',    // Green
+                        'waiting': 'rgba(245, 158, 11, 0.6)',    // Yellow
+                        'failed': 'rgba(239, 68, 68, 0.6)'       // Red
+                    }[status] || 'rgba(156, 163, 175, 0.6)';     // Gray default
+                },
+                borderColor: 'rgba(0, 0, 0, 0.1)',
+                borderWidth: 1,
+                pointRadius: 8,
+                pointHoverRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'hour',
+                        displayFormats: {
+                            hour: 'HH:mm'
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Schedule Time'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'DAG ID'
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const data = context.raw;
+                            return [
+                                `DAG: ${data.y}`,
+                                `Cluster: ${data.cluster}`,
+                                `Time: ${moment(data.x).format('HH:mm')}`,
+                                `Status: ${data.status}`,
+                                `Schedule: ${data.schedule_interval}`
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Handle navigation buttons
+    document.getElementById('prevDay').addEventListener('click', function() {
+        currentDate = moment(currentDate).subtract(1, 'day').toDate();
+        updateChart();
+    });
+
+    document.getElementById('nextDay').addEventListener('click', function() {
+        currentDate = moment(currentDate).add(1, 'day').toDate();
+        updateChart();
+    });
+
+    function updateChart() {
+        fetch(`/api/dag-schedules/?date=${currentDate.toISOString()}`)
+            .then(response => response.json())
+            .then(data => {
+                timelineChart.data.datasets[0].data = formatScheduleData(data, currentDate);
+                timelineChart.options.scales.x.min = moment(currentDate).startOf('day');
+                timelineChart.options.scales.x.max = moment(currentDate).endOf('day');
+                timelineChart.update();
+            });
+    }
+});
+</script>
 {% endblock %}

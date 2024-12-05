@@ -1,5 +1,141 @@
 # DjangoFlow Development Checkpoint
 
+## Checkpoint 10: Latest Changes and Progress
+
+### Summary of Changes
+
+#### 1. DAG Timeline Visualization
+- Implemented an interactive timeline on the home page to display scheduled DAG runs for the next 24 hours
+- Added color-coded status indicators for different DAG states (scheduled, running, waiting, failed)
+- Included navigation buttons for moving between days
+- Tooltips provide detailed information about each scheduled run
+
+#### 2. URL Pattern Fixes
+- Resolved a NoReverseMatch error by ensuring consistent URL naming conventions across templates and views
+- Updated references in templates to match the correct URL patterns defined in `urls.py`
+
+#### 3. Layout Improvements
+- Fixed footer positioning to prevent content overlap using flex layout
+- Implemented sticky footer that stays at bottom even with minimal content
+- Optimized container widths for better space utilization
+- Added responsive padding and margins for consistent spacing
+
+### Dependencies and APIs
+- **Chart.js**: Used for rendering the timeline visualization
+- **Moment.js**: Used for time handling and formatting
+- **Croniter**: Used for parsing cron expressions
+- **Django REST Framework**: Used for creating the API endpoint for fetching DAG schedules
+- **Tailwind CSS**: Used for styling and responsive design
+- **Alpine.js**: Used for interactive UI components
+- **Flowbite**: Used for additional UI components and styling
+
+### Design Decisions
+- Timeline uses a scatter plot for clear visualization of scheduled times
+- Color coding helps quickly identify the status of each DAG
+- UI allows for easy navigation between different days to view scheduled runs
+- Tooltips are employed to provide detailed information without cluttering the interface
+- Implemented flex layout in base template for proper content and footer positioning
+- Used responsive design patterns to ensure consistent layout across screen sizes
+
+### Environmental Variables
+- Project running in virtual environment at `./venv`
+
+### Security Preferences
+- No specific security preferences mentioned during the session
+
+### Special User Requests and Preferences
+- Consistent URL patterns across templates and views
+- Footer should not cut off content and stay at bottom with minimal content
+- Proper spacing and width utilization in DAG list view
+
+### Existing Blockers and Bugs
+- ✓ Fixed: 404 error when accessing DAG details due to inconsistent URL naming
+- ✓ Fixed: Footer layout cutting off content
+- ✓ Fixed: Footer positioning with minimal content
+- ✓ Fixed: DAG list width utilization
+
+### Next Steps
+1. Continue enhancing the monitoring system and adding more detailed task statistics
+2. Explore adding metric visualization and graphs
+3. Create an alert notification system
+4. Consider adding more interactive features to the DAG timeline
+5. Implement user preferences for UI customization
+
+### File Changes Summary
+1. `/templates/base.html`: 
+   - Implemented flex layout for proper content spacing
+   - Added sticky footer with responsive design
+   - Updated container widths and margins
+
+2. `/templates/dags/detail.html`: 
+   - Updated URL reference for cluster detail from 'clusters:detail' to 'clusters:cluster_detail'
+
+3. `/templates/dags/list.html`:
+   - Updated URL reference for DAG detail
+   - Optimized container structure for better width utilization
+
+4. `/dags/urls.py`:
+   - Changed URL pattern name from 'detail' to 'details' for consistency
+
+5. `/dags/views.py`:
+   - Updated redirect in DAG edit view to use 'dags:details'
+
+## Checkpoint 9: DAG Timeline Visualization
+
+### Summary of Changes
+
+#### Home Page Timeline Feature
+1. **Timeline Visualization**:
+   - Added interactive timeline showing DAG schedules
+   - Visual representation of next 24 hours of scheduled runs
+   - Color-coded status indicators:
+     - Blue (0.6 opacity) for scheduled runs
+     - Green (0.6 opacity) for running
+     - Yellow (0.6 opacity) for waiting
+     - Red (0.6 opacity) for failed
+   - Day navigation with Previous/Next buttons
+   - Tooltips showing detailed run information
+
+2. **Backend Enhancements**:
+   - Added `schedule_interval` field to DAG model
+   - Implemented `get_next_run_time` method for schedule calculations
+   - Support for various schedule formats:
+     - Cron expressions (e.g., '*/10 * * * *')
+     - Predefined schedules (@daily, @hourly)
+     - Time intervals (30m, 1h, 1d)
+   - New API endpoint for fetching schedule data
+
+3. **Technical Implementation**:
+   - Chart.js scatter plot for timeline display
+   - Moment.js for time handling and formatting
+   - Real-time updates when navigating between days
+   - Efficient database queries with select_related
+
+### Dependencies
+- Chart.js: Timeline visualization
+- Moment.js: Time handling
+- Croniter: Cron expression parsing
+- Django REST Framework: API endpoints
+
+### Design Decisions
+- Scatter plot for clear visualization of scheduled times
+- Color coding helps quickly identify run statuses
+- Day-based navigation for better schedule management
+- Tooltips provide detailed information without cluttering UI
+
+### Code Organization
+- Added schedule-related methods to DAG model
+- Separated API endpoint for schedule data
+- Reusable JavaScript components for timeline
+- Clean separation of concerns in template structure
+
+### Next Steps
+1. Add filtering capabilities by cluster or DAG
+2. Implement zoom levels for different time ranges
+3. Add real-time updates for running DAGs
+4. Consider adding schedule conflict detection
+5. Add schedule modification capabilities
+
 ## Checkpoint 8: DAG List Enhancements
 
 ### Summary of Changes

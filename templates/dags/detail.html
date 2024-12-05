@@ -23,13 +23,16 @@
                 {% endif %}
             </div>
             <div class="flex space-x-3">
+                <a href="{% url 'dags:edit' dag.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Edit
+                </a>
                 <button onclick="refreshDag()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Refresh
                 </button>
-                <button onclick="triggerDag('{{ dag.pk }}')" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                <button onclick="triggerDag('{{ dag.id }}')" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
                     <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -40,8 +43,8 @@
         </div>
     </div>
 
-    <!-- DAG Information -->
     <div class="px-4 py-5 sm:p-6">
+        <!-- DAG Information -->
         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <!-- Basic Information -->
             <div>
@@ -50,7 +53,7 @@
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Cluster</dt>
                         <dd class="mt-1 text-sm text-gray-900">
-                            <a href="{% url 'clusters:detail' dag.cluster.pk %}" class="text-indigo-600 hover:text-indigo-900">
+                            <a href="{% url 'clusters:cluster_detail' dag.cluster.pk %}" class="text-indigo-600 hover:text-indigo-900">
                                 {{ dag.cluster.name }}
                             </a>
                         </dd>
@@ -106,7 +109,7 @@
         <div class="mt-8">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-medium text-gray-900">Recent Runs</h2>
-                <a href="{% url 'dags:runs' dag.pk %}" class="text-sm text-indigo-600 hover:text-indigo-900">View All Runs</a>
+                <a href="{% url 'dags:runs' dag.id %}" class="text-sm text-indigo-600 hover:text-indigo-900">View All Runs</a>
             </div>
             <div class="shadow overflow-x-auto border-b border-gray-200 sm:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -122,7 +125,7 @@
                         {% for run in recent_runs %}
                         <tr>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <a href="{% url 'dags:run_detail' dag.pk run.pk %}" class="text-sm text-indigo-600 hover:text-indigo-900">
+                                <a href="{% url 'dags:run_detail' dag.id run.pk %}" class="text-sm text-indigo-600 hover:text-indigo-900">
                                     {{ run.run_id }}
                                 </a>
                             </td>
@@ -156,7 +159,7 @@
         <div class="mt-8">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-medium text-gray-900">Tasks</h2>
-                <a href="{% url 'dags:tasks' dag.pk %}" class="text-sm text-indigo-600 hover:text-indigo-900">View All Tasks</a>
+                <a href="{% url 'dags:tasks' dag.id %}" class="text-sm text-indigo-600 hover:text-indigo-900">View All Tasks</a>
             </div>
             <div class="shadow overflow-x-auto border-b border-gray-200 sm:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -203,31 +206,29 @@
 {% block extra_js %}
 <script>
 function refreshDag() {
-    window.location.reload();
+    location.reload();
 }
 
 function triggerDag(dagId) {
-    if (!confirm('Are you sure you want to trigger this DAG?')) {
-        return;
-    }
-    
-    fetch(`/api/dags/${dagId}/trigger/`, {
+    fetch(`/dags/${dagId}/trigger/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
         },
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            alert('DAG triggered successfully');
-            setTimeout(refreshDag, 1000);
+        if (data.status === 'success') {
+            // Reload the page to show the new run
+            location.reload();
         } else {
-            alert('Failed to trigger DAG: ' + data.error);
+            alert('Failed to trigger DAG');
         }
     })
     .catch(error => {
-        alert('Error triggering DAG: ' + error);
+        console.error('Error:', error);
+        alert('Failed to trigger DAG');
     });
 }
 </script>

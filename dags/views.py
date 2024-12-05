@@ -55,40 +55,31 @@ def dag_list(request):
     }
     return render(request, 'dags/list.html', context)
 
-def dag_detail(request, dag_id):
-    cluster_id = request.GET.get('cluster')
-    if cluster_id:
-        dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-    else:
-        dag = DAG.objects.filter(dag_id=dag_id).first()
-        if not dag:
-            raise Http404("DAG not found")
-    
-    # Get recent runs
-    recent_runs = dag.runs.all().order_by('-execution_date')[:5]
-    
-    # Get task statistics
-    task_stats = TaskInstance.objects.filter(dag_run__dag=dag).values('task_id').annotate(
-        total_runs=Count('id'),
-        avg_duration=Avg('duration'),
-        success_rate=Count('id', filter=Q(state='success')) * 100.0 / Count('id')
-    )
-    
-    context = {
-        'dag': dag,
-        'recent_runs': recent_runs,
-        'task_stats': task_stats,
-    }
-    return render(request, 'dags/detail.html', context)
+def dag_details(request, id):
+    try:
+        dag = get_object_or_404(DAG, id=id)
+        
+        # Get recent runs
+        recent_runs = dag.runs.all().order_by('-execution_date')[:5]
+        
+        # Get task statistics
+        task_stats = TaskInstance.objects.filter(dag_run__dag=dag).values('task_id').annotate(
+            total_runs=Count('id'),
+            avg_duration=Avg('duration'),
+            success_rate=Count('id', filter=Q(state='success')) * 100.0 / Count('id')
+        )
+        
+        context = {
+            'dag': dag,
+            'recent_runs': recent_runs,
+            'task_stats': task_stats,
+        }
+        return render(request, 'dags/detail.html', context)
+    except DAG.DoesNotExist:
+        raise Http404("DAG not found")
 
-def dag_edit(request, dag_id):
-    cluster_id = request.GET.get('cluster')
-    if cluster_id:
-        dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-    else:
-        dag = DAG.objects.filter(dag_id=dag_id).select_related('cluster').first()
-        if not dag:
-            raise Http404("DAG not found")
+def dag_edit(request, id):
+    dag = get_object_or_404(DAG, id=id)
             
     if request.method == 'POST':
         # Update DAG fields from form data
@@ -98,17 +89,11 @@ def dag_edit(request, dag_id):
         dag.save()
         
         messages.success(request, 'DAG updated successfully.')
-        return redirect('dags:details', dag_id=dag.dag_id)
+        return redirect('dags:details', id=dag.id)
     return render(request, 'dags/edit.html', {'dag': dag})
 
-def dag_delete(request, dag_id):
-    cluster_id = request.GET.get('cluster')
-    if cluster_id:
-        dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-    else:
-        dag = DAG.objects.filter(dag_id=dag_id).select_related('cluster').first()
-        if not dag:
-            raise Http404("DAG not found")
+def dag_delete(request, id):
+    dag = get_object_or_404(DAG, id=id)
             
     if request.method == 'POST':
         dag.delete()
@@ -116,16 +101,9 @@ def dag_delete(request, dag_id):
         return redirect('dags:list')
     return render(request, 'dags/delete.html', {'dag': dag})
 
-def dag_runs(request, dag_id):
+def dag_runs(request, id):
     try:
-        cluster_id = request.GET.get('cluster')
-        if cluster_id:
-            dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-        else:
-            # If no cluster specified, try to find the first matching DAG
-            dag = DAG.objects.filter(dag_id=dag_id).first()
-            if not dag:
-                raise Http404("DAG not found")
+        dag = get_object_or_404(DAG, id=id)
         
         state = request.GET.get('state')
         runs = dag.runs.all()
@@ -154,8 +132,103 @@ def dag_runs(request, dag_id):
     except DAG.DoesNotExist:
         raise Http404("DAG not found")
 
-def dag_tasks(request, dag_id):
-    dag = get_object_or_404(DAG, id=dag_id)
+def run_detail(request, id, run_id):
+    try:
+        dag = get_object_or_404(DAG, id=id)
+        run = get_object_or_404(DAGRun, dag=dag, run_id=run_id)
+        
+        # Get task instances for this run
+        task_instances = run.task_instances.all()
+        
+        context = {
+            'dag': dag,
+            'run': run,
+            'task_instances': task_instances,
+        }
+        return render(request, 'dags/run_detail.html', context)
+    except (DAG.DoesNotExist, DAGRun.DoesNotExist):
+        raise Http404("Run not found")
+
+def dag_logs(request, id):
+    dag = get_object_or_404(DAG, id=id)
+    return render(request, 'dags/logs.html', {'dag': dag})
+
+@login_required
+@require_POST
+def toggle_pause(request, id):
+    dag = get_object_or_404(DAG, id=id)
+    dag.is_paused = not dag.is_paused
+    dag.save()
+    
+    return JsonResponse({
+        'status': 'success',
+        'is_paused': dag.is_paused
+    })
+
+@login_required
+@require_POST
+def trigger_dag(request, id):
+    dag = get_object_or_404(DAG, id=id)
+    
+    # Create a new DAG run
+    execution_date = timezone.now()
+    run_id = f"manual__{execution_date.strftime('%Y-%m-%dT%H:%M:%S')}"
+    
+    dag_run = DAGRun.objects.create(
+        dag=dag,
+        run_id=run_id,
+        execution_date=execution_date,
+        state='running',
+        external_trigger=True
+    )
+    
+    return JsonResponse({
+        'status': 'success',
+        'run_id': dag_run.run_id,
+        'execution_date': dag_run.execution_date.isoformat()
+    })
+
+def get_dag_schedules(request):
+    """API endpoint to get DAG schedules for the timeline visualization."""
+    try:
+        date_str = request.GET.get('date')
+        if date_str:
+            base_date = timezone.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        else:
+            base_date = timezone.now()
+
+        # Get the start and end of the day
+        start_date = base_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = start_date + timedelta(days=1)
+
+        # Get all active DAGs
+        dags = DAG.objects.filter(is_active=True).select_related('cluster')
+        
+        schedules = []
+        for dag in dags:
+            # Get the next scheduled time based on the DAG's schedule interval
+            if dag.schedule_interval:
+                # Parse cron expression or interval string to get next run time
+                next_run_time = dag.get_next_run_time(base_date)
+                if next_run_time and start_date <= next_run_time <= end_date:
+                    # Get the latest run status
+                    latest_run = dag.runs.order_by('-execution_date').first()
+                    status = latest_run.state if latest_run else 'scheduled'
+                    
+                    schedules.append({
+                        'dag_id': dag.dag_id,
+                        'start_time': next_run_time.isoformat(),
+                        'schedule_interval': dag.schedule_interval,
+                        'cluster': dag.cluster.name,
+                        'status': status
+                    })
+
+        return JsonResponse({'schedules': schedules})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+def dag_tasks(request, id):
+    dag = get_object_or_404(DAG, id=id)
     task_type = request.GET.get('task_type')
     time_range = request.GET.get('time_range', '7')  # Default to 7 days
     
@@ -194,101 +267,3 @@ def dag_tasks(request, dag_id):
         'time_range': time_range,
     }
     return render(request, 'dags/tasks.html', context)
-
-def run_detail(request, dag_id, run_id):
-    try:
-        cluster_id = request.GET.get('cluster')
-        if cluster_id:
-            dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-        else:
-            # If no cluster specified, try to find the first matching DAG
-            dag = DAG.objects.filter(dag_id=dag_id).first()
-            if not dag:
-                raise Http404("DAG not found")
-        
-        run = get_object_or_404(DAGRun, dag=dag, run_id=run_id)
-        
-        # Get task instances for this run
-        task_instances = run.task_instances.all().order_by('task_id')
-        
-        context = {
-            'dag': dag,
-            'run': run,
-            'task_instances': task_instances,
-        }
-        return render(request, 'dags/run_detail.html', context)
-    except DAG.DoesNotExist:
-        raise Http404("DAG not found")
-
-def dag_logs(request, dag_id):
-    dag = get_object_or_404(DAG, id=dag_id)
-    return render(request, 'dags/logs.html', {'dag': dag})
-
-def dag_details(request, dag_id):
-    try:
-        cluster_id = request.GET.get('cluster')
-        if cluster_id:
-            dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
-        else:
-            # If no cluster specified, try to find the first matching DAG
-            dag = DAG.objects.filter(dag_id=dag_id).first()
-            if not dag:
-                raise Http404("DAG not found")
-        
-        recent_runs = dag.runs.order_by('-execution_date')[:10].prefetch_related('task_instances')
-        
-        # Process task instance counts for each run
-        for run in recent_runs:
-            task_counts = (
-                run.task_instances
-                .values('state')
-                .annotate(count=Count('id'))
-                .order_by('state')
-            )
-            run.task_state_counts = [
-                {'state': item['state'], 'count': item['count']}
-                for item in task_counts
-            ]
-        
-        context = {
-            'dag': dag,
-            'recent_runs': recent_runs,
-        }
-        return render(request, 'dags/details.html', context)
-    except DAG.DoesNotExist:
-        raise Http404("DAG not found")
-
-@login_required
-@require_POST
-def toggle_pause(request, dag_id):
-    """Toggle the pause state of a DAG"""
-    dag = get_object_or_404(DAG, dag_id=dag_id)
-    dag.is_paused = not dag.is_paused
-    dag.save()
-    
-    status = 'paused' if dag.is_paused else 'unpaused'
-    messages.success(request, f'DAG {dag.dag_id} has been {status}')
-    return JsonResponse({'status': 'success', 'is_paused': dag.is_paused})
-
-@login_required
-@require_POST
-def trigger_dag(request, dag_id):
-    """Manually trigger a DAG run"""
-    dag = get_object_or_404(DAG, dag_id=dag_id)
-    
-    # Create a new DAG run
-    run_id = f'manual__{timezone.now().strftime("%Y-%m-%dT%H:%M:%S")}'
-    dag_run = DAGRun.objects.create(
-        dag=dag,
-        run_id=run_id,
-        state='queued',
-        execution_date=timezone.now(),
-        external_trigger=True
-    )
-    
-    messages.success(request, f'DAG {dag.dag_id} has been triggered')
-    return JsonResponse({
-        'status': 'success',
-        'run_id': dag_run.run_id,
-        'execution_date': dag_run.execution_date.isoformat()
-    })

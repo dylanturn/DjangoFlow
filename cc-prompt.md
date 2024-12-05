@@ -11,4 +11,7 @@ When making changes to the codebase, review `REGRESSIONS.md` to ensure that the 
 
 Accuracy and completeness are of utmost importance. When clarification is required, ask for it.
 
+Other Notes:
+- When running python commands, use the virtual environment at `./venv`
+
 Once you are done, respond with the current date and time in the following format: `YYYY-MM-DD HH:MM:SS`

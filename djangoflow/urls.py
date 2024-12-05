@@ -17,6 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import render
+from django.utils import timezone
+from django.core.serializers.json import DjangoJSONEncoder
+import json
 from dags.models import DAG
 from clusters.models import Cluster
 from rest_framework import routers
@@ -28,9 +31,36 @@ from monitoring.api import (
 )
 
 def home(request):
+    # Get base date (today)
+    base_date = timezone.now()
+    start_date = base_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = start_date + timezone.timedelta(days=1)
+
+    # Get all active DAGs
+    active_dags = DAG.objects.filter(is_active=True).select_related('cluster')
+    
+    # Get schedule data for the timeline
+    schedules = []
+    for dag in active_dags:
+        if dag.schedule_interval:
+            next_run_time = dag.get_next_run_time(base_date)
+            if next_run_time and start_date <= next_run_time <= end_date:
+                # Get the latest run status
+                latest_run = dag.runs.order_by('-execution_date').first()
+                status = latest_run.state if latest_run else 'scheduled'
+                
+                schedules.append({
+                    'dag_id': dag.dag_id,
+                    'start_time': next_run_time.isoformat(),
+                    'schedule_interval': dag.schedule_interval,
+                    'cluster': dag.cluster.name,
+                    'status': status
+                })
+
     context = {
-        'active_dags': DAG.objects.filter(is_active=True).count(),
+        'active_dags': active_dags.count(),
         'active_clusters': Cluster.objects.filter(is_active=True).count(),
+        'dag_schedules': json.dumps(schedules, cls=DjangoJSONEncoder)
     }
     return render(request, 'home.html', context)
 

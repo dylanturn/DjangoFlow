@@ -49,11 +49,17 @@
                                     {% for dag in dags %}
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex flex-col">
-                                                <a href="{% url 'dags:detail' dag.id %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
-                                                    {{ dag.dag_id }}
-                                                </a>
-                                                <span class="text-xs text-gray-500">{{ dag.cluster.name }}</span>
+                                            <div class="flex items-center">
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900">
+                                                        <a href="{% url 'dags:details' dag.id %}" class="hover:text-indigo-600">
+                                                            {{ dag.dag_id }}
+                                                        </a>
+                                                    </div>
+                                                    <div class="text-sm text-gray-500">
+                                                        {{ dag.description|truncatechars:100 }}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
