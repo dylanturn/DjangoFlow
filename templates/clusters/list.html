@@ -15,18 +15,21 @@
     // Function to create tiny spark line chart
     function createTinyLineChart(elementId, data) {
         const ctx = document.getElementById(elementId).getContext('2d');
+        const color = data.color || 'rgba(75, 192, 192, 1)';
+        const fillColor = color.replace('1)', '0.5)');  // Convert opacity to 0.5
+        
         new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.labels,
                 datasets: [{
                     data: data.values,
-                    borderColor: data.color || 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1.5,
+                    borderColor: color,
+                    borderWidth: 1,
                     pointRadius: 0,
-                    tension: 0.1,
+                    tension: 0.3,
                     fill: true,
-                    backgroundColor: data.color ? `${data.color}15` : 'rgba(75, 192, 192, 0.1)'
+                    backgroundColor: fillColor
                 }]
             },
             options: {
@@ -129,9 +132,12 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center space-x-2">
+                                            <div class="flex flex-col space-y-2">
                                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if cluster.scheduler_healthy %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
                                                     Scheduler {{ cluster.scheduler_healthy|yesno:"Healthy,Unhealthy" }}
+                                                </span>
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if cluster.triggerer_healthy %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                                    Triggerer {{ cluster.triggerer_healthy|yesno:"Healthy,Unhealthy" }}
                                                 </span>
                                             </div>
                                         </td>
