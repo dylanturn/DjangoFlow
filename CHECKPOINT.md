@@ -1,5 +1,60 @@
 # DjangoFlow Development Checkpoint
 
+## Checkpoint 8: DAG List Enhancements
+
+### Summary of Changes
+
+#### DAG List Layout Improvements
+1. **Recent Runs Column**:
+   - Added bar charts showing the last 14 run durations
+   - Bars color-coded by status:
+     - Green (0.6 opacity) for successful runs
+     - Blue (0.6 opacity) for running
+     - Yellow (0.6 opacity) for retrying
+     - Red (0.6 opacity) for failed
+     - Light gray (0.2 opacity) for no runs
+   - Most recent runs displayed on the right
+   - Added a horizontal zero line for reference
+   - Tooltips show run number, status, and duration
+
+2. **Table Layout**:
+   - Combined DAG Name and Cluster into a single "DAG" column
+   - Cluster name displayed below DAG name in smaller, muted text
+   - Made DAG names clickable links to details page
+   - Removed redundant "View Details" column
+   - Reordered columns for better readability:
+     1. DAG (Name + Cluster)
+     2. Recent Runs
+     3. Status
+     4. Last Updated
+
+3. **Visual Improvements**:
+   - Left-aligned text in Recent Runs column
+   - Maintained vertical centering of text beside charts
+   - Used consistent styling for interactive elements
+   - Improved spacing and alignment throughout
+
+### Dependencies
+- Chart.js: Used for rendering bar charts
+- Tailwind CSS: Used for styling and layout
+- Alpine.js: Used for interactive components
+
+### Design Decisions
+- Bar charts show run history in a compact, visual format
+- Right-to-left ordering puts focus on recent runs
+- Combined DAG and Cluster info reduces table width while maintaining clarity
+- Consistent color coding helps quickly identify run statuses
+
+### Code Organization
+- Removed duplicate chart initialization code
+- Simplified template structure
+- Improved code readability and maintainability
+
+### Next Steps
+- Consider adding run duration scale to charts
+- Potentially add filtering and sorting capabilities
+- Look into adding more interactive features to the charts
+
 ## Checkpoint 7: DAG Details View Enhancement
 
 ### DAG Details View Improvements
