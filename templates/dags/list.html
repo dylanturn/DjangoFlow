@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load dag_filters %}
 
 {% block title %}DAGs{% endblock %}
 
@@ -8,35 +9,15 @@
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">DAGs</h1>
-                <p class="mt-1 text-sm text-gray-500">
-                    {% if selected_cluster %}
-                    Showing DAGs for cluster: {{ selected_cluster.name }}
-                    {% else %}
-                    Showing all DAGs across clusters
-                    {% endif %}
-                </p>
+                <p class="mt-1 text-sm text-gray-500">List of all Directed Acyclic Graphs (DAGs) across clusters</p>
             </div>
-            <div class="flex space-x-3">
-                <div class="relative">
-                    <select id="cluster-filter" onchange="window.location.href=this.value" class="block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                        <option value="{% url 'dags:list' %}" {% if not selected_cluster %}selected{% endif %}>All Clusters</option>
-                        {% for cluster in clusters %}
-                        <option value="{% url 'dags:list' %}?cluster={{ cluster.id }}" {% if selected_cluster.id == cluster.id %}selected{% endif %}>
-                            {{ cluster.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="button" onclick="refreshDags()" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                    <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh
+            <div class="flex items-center space-x-2">
+                <button type="button" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Refresh DAGs
                 </button>
             </div>
         </div>
     </div>
-
     <div class="bg-white">
         <div class="max-w-7xl mx-auto">
             <div class="flex flex-col">
@@ -47,7 +28,7 @@
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            DAG ID
+                                            DAG Name
                                         </th>
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Cluster
@@ -58,46 +39,47 @@
                                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Last Updated
                                         </th>
-                                        <th scope="col" class="relative px-6 py-3">
-                                            <span class="sr-only">Actions</span>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Recent Runs
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     {% for dag in dags %}
                                     <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">
-                                                <a href="{% url 'dags:detail' dag.dag_id %}?cluster={{ dag.cluster.id }}" class="hover:text-indigo-600">
-                                                    {{ dag.dag_id }}
-                                                </a>
-                                            </div>
-                                            <div class="text-sm text-gray-500">{{ dag.description|truncatechars:50 }}</div>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {{ dag.dag_id }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ dag.cluster.name }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm text-gray-900">{{ dag.cluster.name }}</div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if dag.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
-                                                {% if dag.is_active %}Active{% else %}Inactive{% endif %}
-                                            </span>
-                                            {% if dag.is_paused %}
-                                            <span class="ml-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                Paused
-                                            </span>
-                                            {% endif %}
+                                            {{ dag|dag_status_badge|safe }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {{ dag.last_updated|date:"Y-m-d H:i:s" }}
                                         </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {% with runs_summary=dag.runs.all|recent_runs_summary %}
+                                            <div class="flex flex-col">
+                                                <span class="text-xs text-gray-600">Total Runs: {{ runs_summary.total_runs }}</span>
+                                                <span class="text-xs text-gray-600">Success Rate: {{ runs_summary.success_rate }}%</span>
+                                                <span class="text-xs text-gray-600 font-semibold" style="color: {{ runs_summary.last_run_state|dag_run_color }};">
+                                                    Last Run: {{ runs_summary.last_run_state }}
+                                                </span>
+                                            </div>
+                                            {% endwith %}
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <a href="{% url 'dags:edit' dag.dag_id %}?cluster={{ dag.cluster.id }}" class="text-indigo-600 hover:text-indigo-900 mr-4">Edit</a>
-                                            <a href="{% url 'dags:delete' dag.dag_id %}?cluster={{ dag.cluster.id }}" class="text-red-600 hover:text-red-900">Delete</a>
+                                            <a href="{% url 'dags:detail' dag.id %}" class="text-indigo-600 hover:text-indigo-900">View Details</a>
                                         </td>
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="5" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                        <td colspan="6" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                                             No DAGs found. 
                                         </td>
                                     </tr>
@@ -116,7 +98,9 @@
 {% block extra_js %}
 <script>
 function refreshDags() {
-    window.location.reload();
+    // Implement HTMX or fetch-based DAG refresh mechanism
+    console.log('Refreshing DAGs...');
 }
+refreshDags()
 </script>
 {% endblock %}
