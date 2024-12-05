@@ -1,7 +1,8 @@
 from django import template
 from django.utils.timesince import timesince
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.utils import timezone
+import json
 
 register = template.Library()
 
@@ -112,4 +113,63 @@ def recent_runs_summary(dag_runs):
         'total_runs': total_runs,
         'success_rate': round((successful_runs / total_runs) * 100, 2),
         'last_run_state': dag_runs.first().state if dag_runs else 'No runs'
+    }
+
+@register.filter
+def last_14_runs_data(runs):
+    """Return data for the last 14 possible DAG runs"""
+    # Get the last 14 scheduled slots, even if no runs exist
+    recent_runs = list(runs.order_by('-start_date')[:14])
+    data = {
+        'labels': [],
+        'runtimes': [],
+        'colors': [],
+        'tooltips': []
+    }
+    
+    # Always show 14 slots, filling right to left (most recent on right)
+    for i in range(14):
+        data['labels'].append('')  # Empty label instead of tick mark
+        
+        run_index = 13 - i  # Reverse the index so newest runs are on the right
+        if run_index < len(recent_runs):
+            run = recent_runs[run_index]
+            if run.end_date and run.start_date:
+                duration = (run.end_date - run.start_date).total_seconds()
+                data['runtimes'].append(round(duration))
+                
+                # Set color based on the run state
+                if run.state == 'success':
+                    data['colors'].append('rgba(34, 197, 94, 0.6)')  # green
+                elif run.state == 'running':
+                    data['colors'].append('rgba(59, 130, 246, 0.6)')  # blue
+                elif run.state == 'failed':
+                    data['colors'].append('rgba(239, 68, 68, 0.6)')  # red
+                elif run.state == 'up_for_retry':
+                    data['colors'].append('rgba(234, 179, 8, 0.6)')  # yellow
+                else:
+                    data['colors'].append('rgba(156, 163, 175, 0.6)')  # gray
+                
+                data['tooltips'].append(f"Run {len(recent_runs)-run_index}: {run.state} ({duration:.1f}s)")
+            else:
+                data['runtimes'].append(0)
+                data['colors'].append('rgba(156, 163, 175, 0.2)')  # light gray
+                data['tooltips'].append(f"Run {len(recent_runs)-run_index}: incomplete")
+        else:
+            # No run in this slot
+            data['runtimes'].append(0)
+            data['colors'].append('rgba(156, 163, 175, 0.2)')  # light gray
+            data['tooltips'].append("No data")
+    
+    # Reverse all the arrays so newest runs are on the right
+    data['labels'].reverse()
+    data['runtimes'].reverse()
+    data['colors'].reverse()
+    data['tooltips'].reverse()
+    
+    return {
+        'labels': json.dumps(data['labels']),
+        'runtimes': json.dumps(data['runtimes']),
+        'colors': json.dumps(data['colors']),
+        'tooltips': json.dumps(data['tooltips'])
     }
