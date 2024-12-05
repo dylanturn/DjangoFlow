@@ -33,4 +33,8 @@ app.conf.beat_schedule = {
         'task': 'monitoring.tasks.cleanup_old_metrics',
         'schedule': crontab(hour=0, minute=0),  # Daily at midnight
     },
+    'sync-dag-runs': {
+        'task': 'dags.tasks.sync_dag_runs',
+        'schedule': 60.0,  # Every minute
+    },
 }

@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.dag_list, name='list'),
     path('<str:dag_id>/', views.dag_details, name='detail'),
     path('<str:dag_id>/runs/', views.dag_runs, name='runs'),
+    path('<str:dag_id>/runs/<str:run_id>/', views.run_detail, name='run_detail'),
     path('<str:dag_id>/logs/', views.dag_logs, name='logs'),
     path('<str:dag_id>/toggle_pause/', views.toggle_pause, name='toggle_pause'),
     path('<str:dag_id>/trigger/', views.trigger_dag, name='trigger'),

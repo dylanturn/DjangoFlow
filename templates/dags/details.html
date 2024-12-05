@@ -58,7 +58,7 @@
     <div class="px-4 py-5 border-t border-gray-200 sm:px-6">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-medium text-gray-900">Recent Runs</h2>
-            <a href="{% url 'dags:runs' dag.id %}" class="text-sm text-indigo-600 hover:text-indigo-900">View all runs</a>
+            <a href="{% url 'dags:runs' dag.dag_id %}?cluster={{ dag.cluster.id }}" class="text-sm text-indigo-600 hover:text-indigo-900">View all runs</a>
         </div>
         <div class="mt-4 flex flex-col">
             <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -78,7 +78,7 @@
                                 {% for run in recent_runs %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <a href="{% url 'dags:run_detail' dag.id run.id %}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
+                                        <a href="{% url 'dags:run_detail' dag.dag_id run.run_id %}?cluster={{ dag.cluster.id }}" class="text-sm font-medium text-indigo-600 hover:text-indigo-900">
                                             {{ run.run_id }}
                                         </a>
                                     </td>

@@ -321,6 +321,36 @@ No new environmental variables were added, but Redis connection settings may nee
 ### Known Issues
 None at this time. All previous alignment issues in the navigation have been resolved.
 
+## December 5, 2024 - URL Routing Regression Fix
+
+### Key Changes
+- Fixed `NoReverseMatch` error in DAG run detail view
+- Added missing URL pattern for `run_detail` in `dags/urls.py`
+- Updated `REGRESSIONS.md` with detailed regression documentation
+
+### Technical Details
+- Updated URL configuration to include `path('<str:dag_id>/runs/<str:run_id>/', views.run_detail, name='run_detail')`
+- Resolved routing issue preventing access to detailed DAG run information
+
+### Debugging Process
+1. Identified `NoReverseMatch` error in DAG navigation
+2. Traced the issue to missing URL pattern in `urls.py`
+3. Added the correct URL pattern to match the `run_detail` view function
+4. Documented the regression in `REGRESSIONS.md`
+
+### Impact
+- Restored full navigation functionality for DAG run details
+- Improved URL routing consistency in the DAG management interface
+- Enhanced documentation of system regressions
+
+### Files Modified
+- `dags/urls.py`
+- `REGRESSIONS.md`
+
+### Next Steps
+- Review similar URL routing patterns in other views
+- Add integration tests for DAG navigation flows
+
 ## 2024-12-04 23:28:37 - URL Pattern Standardization and Navigation Fixes
 
 ### Changes Made

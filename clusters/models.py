@@ -13,6 +13,26 @@ class Cluster(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # New fields for enhanced view
+    release_name = models.CharField(max_length=100, null=True, blank=True, help_text="Release or deployment name")
+    version = models.CharField(max_length=20, default='1.0', help_text="Cluster version")
+    
+    # Resource metrics
+    total_pods = models.IntegerField(default=0, help_text="Total number of pods")
+    pods_used = models.FloatField(default=0, help_text="Percentage of pods used")
+    
+    total_cores = models.FloatField(default=0, help_text="Total number of CPU cores")
+    cores_used = models.FloatField(default=0, help_text="Percentage of cores used")
+    
+    total_memory = models.FloatField(default=0, help_text="Total memory in GB")
+    memory_used = models.FloatField(default=0, help_text="Percentage of memory used")
+
+    # Tags for additional metadata
+    tags = models.ManyToManyField('ClusterTag', blank=True)
+
+    # Scheduler health
+    scheduler_healthy = models.BooleanField(default=False, help_text="Scheduler current health status")
+
     class Meta:
         ordering = ['name']
 
@@ -38,6 +58,15 @@ class Cluster(models.Model):
         from .services import AirflowAPIService
         service = AirflowAPIService(self)
         return service.check_health()
+
+
+class ClusterTag(models.Model):
+    """Additional metadata tags for clusters."""
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.name
 
 
 class ClusterHealth(models.Model):

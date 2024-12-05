@@ -56,10 +56,16 @@ def dag_list(request):
     return render(request, 'dags/list.html', context)
 
 def dag_detail(request, dag_id):
-    dag = get_object_or_404(DAG, id=dag_id)
+    cluster_id = request.GET.get('cluster')
+    if cluster_id:
+        dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
+    else:
+        dag = DAG.objects.filter(dag_id=dag_id).first()
+        if not dag:
+            raise Http404("DAG not found")
     
     # Get recent runs
-    recent_runs = dag.runs.all()[:5]
+    recent_runs = dag.runs.all().order_by('-execution_date')[:5]
     
     # Get task statistics
     task_stats = TaskInstance.objects.filter(dag_run__dag=dag).values('task_id').annotate(
@@ -190,18 +196,29 @@ def dag_tasks(request, dag_id):
     return render(request, 'dags/tasks.html', context)
 
 def run_detail(request, dag_id, run_id):
-    dag = get_object_or_404(DAG, id=dag_id)
-    run = get_object_or_404(DAGRun, dag=dag, id=run_id)
-    
-    # Get task instances for this run
-    task_instances = run.task_instances.all().order_by('task_id')
-    
-    context = {
-        'dag': dag,
-        'run': run,
-        'task_instances': task_instances,
-    }
-    return render(request, 'dags/run_detail.html', context)
+    try:
+        cluster_id = request.GET.get('cluster')
+        if cluster_id:
+            dag = get_object_or_404(DAG, dag_id=dag_id, cluster_id=cluster_id)
+        else:
+            # If no cluster specified, try to find the first matching DAG
+            dag = DAG.objects.filter(dag_id=dag_id).first()
+            if not dag:
+                raise Http404("DAG not found")
+        
+        run = get_object_or_404(DAGRun, dag=dag, run_id=run_id)
+        
+        # Get task instances for this run
+        task_instances = run.task_instances.all().order_by('task_id')
+        
+        context = {
+            'dag': dag,
+            'run': run,
+            'task_instances': task_instances,
+        }
+        return render(request, 'dags/run_detail.html', context)
+    except DAG.DoesNotExist:
+        raise Http404("DAG not found")
 
 def dag_logs(request, dag_id):
     dag = get_object_or_404(DAG, id=dag_id)
